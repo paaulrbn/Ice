@@ -1,5 +1,5 @@
-<div align="center">
-    <img src="Ice/Assets.xcassets/AppIcon.appiconset/icon_256x256.png" width=200 height=200>
+<div style="text-align: center;">
+    <img src="Ice/Assets.xcassets/AppIcon.appiconset/icon_256x256.png" alt="Ice Icon" width="256" height="256">
     <h1>Ice</h1>
 </div>
 
@@ -7,79 +7,16 @@ Ice is a powerful menu bar management tool. While its primary function is hiding
 
 ![Banner](https://github.com/user-attachments/assets/4423085c-4e4b-4f3d-ad0f-90a217c03470)
 
-[![Download](https://img.shields.io/badge/download-latest-brightgreen?style=flat-square)](https://github.com/jordanbaird/Ice/releases/latest)
+[![Download](https://img.shields.io/badge/download-latest-brightgreen?style=flat-square)](https://github.com/paaulrbn/Ice/releases/latest)
 ![Platform](https://img.shields.io/badge/platform-macOS-blue?style=flat-square)
 ![Requirements](https://img.shields.io/badge/requirements-macOS%2014%2B-fa4e49?style=flat-square)
-[![Sponsor](https://img.shields.io/badge/Sponsor%20%E2%9D%A4%EF%B8%8F-8A2BE2?style=flat-square)](https://github.com/sponsors/jordanbaird)
-[![Website](https://img.shields.io/badge/Website-015FBA?style=flat-square)](https://icemenubar.app)
-[![License](https://img.shields.io/github/license/jordanbaird/Ice?style=flat-square)](LICENSE)
-
-> [!NOTE]
-> Ice is currently in active development. Some features have not yet been implemented. Download the latest release [here](https://github.com/jordanbaird/Ice/releases/latest) and see the roadmap below for upcoming features.
-
-<a href="https://www.buymeacoffee.com/jordanbaird" target="_blank">
-    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;">
-</a>
+[![License](https://img.shields.io/badge/License-GPL_3.0-blue.svg)](LICENSE)
 
 ## Install
 
 ### Manual Installation
 
-Download the "Ice.zip" file from the [latest release](https://github.com/jordanbaird/Ice/releases/latest) and move the unzipped app into your `Applications` folder.
-
-### Homebrew
-
-Install Ice using the following command:
-
-```sh
-brew install --cask jordanbaird-ice
-```
-
-## Features/Roadmap
-
-### Menu bar item management
-
-- [x] Hide menu bar items
-- [x] "Always-hidden" menu bar section
-- [x] Show hidden menu bar items when hovering over the menu bar
-- [x] Show hidden menu bar items when an empty area in the menu bar is clicked
-- [x] Show hidden menu bar items by scrolling or swiping in the menu bar
-- [x] Automatically rehide menu bar items
-- [x] Hide application menus when they overlap with shown menu bar items
-- [x] Drag and drop interface to arrange individual menu bar items
-- [x] Display hidden menu bar items in a separate bar (e.g. for MacBooks with the notch)
-- [x] Search menu bar items
-- [x] Menu bar item spacing (BETA)
-- [ ] Profiles for menu bar layout
-- [ ] Individual spacer items
-- [ ] Menu bar item groups
-- [ ] Show menu bar items when trigger conditions are met
-
-### Menu bar appearance
-
-- [x] Menu bar tint (solid and gradient)
-- [x] Menu bar shadow
-- [x] Menu bar border
-- [x] Custom menu bar shapes (rounded and/or split)
-- [ ] Remove background behind menu bar
-- [ ] Rounded screen corners
-- [ ] Different settings for light/dark mode
-
-### Hotkeys
-
-- [x] Toggle individual menu bar sections
-- [x] Show the search panel
-- [x] Enable/disable the Ice Bar
-- [x] Show/hide section divider icons
-- [x] Toggle application menus
-- [ ] Enable/disable auto rehide
-- [ ] Temporarily show individual menu bar items
-
-### Other
-
-- [x] Launch at login
-- [x] Automatic updates
-- [ ] Menu bar widgets
+Download the "Ice.zip" file from the [latest release](https://github.com/paaulrbn/Ice/releases/latest) and move the unzipped app into your `Applications` folder.
 
 ## Why does Ice only support macOS 14 and later?
 
