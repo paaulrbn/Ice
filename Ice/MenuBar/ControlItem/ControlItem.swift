@@ -527,8 +527,13 @@ final class ControlItem {
                     farLeftX = visibleMinX - totalWidth - button.frame.width
                 }
                 
-                let rightFrame = buttonWindow.frame
-                let leftFrame = CGRect(x: farLeftX, y: buttonWindow.frame.minY, width: buttonWindow.frame.width, height: buttonWindow.frame.height)
+                if let screen = buttonWindow.screen, screen.hasNotch, let rightArea = screen.auxiliaryTopRightArea {
+                    farLeftX = max(farLeftX, rightArea.minX)
+                }
+                
+                let buttonRectInWindow = button.convert(button.bounds, to: nil)
+                let rightFrame = buttonWindow.convertToScreen(buttonRectInWindow)
+                let leftFrame = CGRect(x: farLeftX, y: rightFrame.minY, width: rightFrame.width, height: rightFrame.height)
                 
                 let startFrame = isOpening ? rightFrame : leftFrame
                 let endFrame = isOpening ? leftFrame : rightFrame

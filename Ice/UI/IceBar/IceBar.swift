@@ -128,8 +128,13 @@ final class IceBarPanel: NSPanel {
                     }
                 }
                 
+                var iceBarX = minX - frame.width - 1
+                if screen.hasNotch, let rightArea = screen.auxiliaryTopRightArea {
+                    iceBarX = max(iceBarX, rightArea.minX)
+                }
+                
                 // Décalage de 1 pixel vers la gauche (ajustement final)
-                return CGPoint(x: minX - frame.width - 1, y: screen.frame.maxY - frame.height)
+                return CGPoint(x: iceBarX, y: screen.frame.maxY - frame.height)
             }
 
             switch iceBarLocation {
@@ -166,7 +171,14 @@ final class IceBarPanel: NSPanel {
                     return originForRightOfScreen
                 }
 
-                return CGPoint(x: (itemFrame.midX - frame.width / 2).clamped(to: lowerBound...upperBound), y: originY)
+                var targetX = (itemFrame.midX - frame.width / 2).clamped(to: lowerBound...upperBound)
+                if screen.hasNotch, let rightArea = screen.auxiliaryTopRightArea {
+                    // S'assurer que la IceBar ne se superpose pas à l'encoche si elle est dans la barre des menus
+                    // ou même en dessous, pour que ce soit propre. Mais pour useIceBar, elle est en dessous.
+                    // Cependant, pour l'esthétique, on peut limiter
+                    // targetX = max(targetX, rightArea.minX)
+                }
+                return CGPoint(x: targetX, y: originY)
             }
         }
 
