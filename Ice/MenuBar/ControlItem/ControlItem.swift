@@ -358,7 +358,7 @@ final class ControlItem {
     }
 
     /// Updates the appearance of the status item using the given hiding state.
-    private func updateStatusItem(with state: HidingState) {
+    func updateStatusItem(with state: HidingState) {
         guard
             let appState,
             let section,
@@ -417,13 +417,7 @@ final class ControlItem {
             }
 
             // Gérer le cas du redimensionnement d'icône custom
-            var finalNewImage = newImage
-            if section.name == .visible, let img = newImage {
-                let icon = appState.settingsManager.generalSettingsManager.iceIcon
-                if case .custom = icon.name {
-                    let ratio = max(img.size.width / 25, img.size.height / 17)
-                }
-            }
+            let finalNewImage = newImage
 
             if section.name != .visible {
                 // Astuce pour éviter le bug de décalage de NSButton : utiliser une NSImageView temporaire
@@ -490,22 +484,47 @@ final class ControlItem {
                 let isOpening = (state == .showItems)
                 
                 let useIceBar = appState.settingsManager.generalSettingsManager.useIceBar
+                
+                // On cherche la vraie bordure gauche des icônes visibles (on ignore celles fermées par l'OS pour ne pas surcompenser)
+                var visibleMinX = button.window?.frame.minX ?? 0
+                let visibleItems = appState.itemManager.itemCache.managedItems(for: .visible)
+                for item in visibleItems {
+                    if let frame = Bridging.getWindowFrame(for: item.windowID), frame.minX > 0, frame.minX < visibleMinX {
+                        visibleMinX = frame.minX
+                    }
+                }
+                
                 var farLeftX: CGFloat = 0
+                
+                // Détermine si la section Always Hidden est ouverte
+                let isAlwaysHidden = (appState.menuBarManager.iceBarPanel.currentSection == .alwaysHidden) || 
+                                     NSEvent.modifierFlags.contains(.option) ||
+                                     appState.menuBarManager.section(withName: .alwaysHidden)?.controlItem.state == .showItems
+                
+                var itemsToMeasure = appState.itemManager.itemCache.managedItems(for: .hidden)
+                if isAlwaysHidden {
+                    itemsToMeasure += appState.itemManager.itemCache.managedItems(for: .alwaysHidden)
+                }
                 
                 if useIceBar {
                     let iceBarFrame = appState.menuBarManager.iceBarPanel.frame
                     if iceBarFrame.width > 0 {
                         farLeftX = iceBarFrame.minX - button.frame.width - 2
                     } else {
-                        let hiddenItems = appState.itemManager.itemCache.managedItems(for: .hidden)
-                        let totalWidth = hiddenItems.reduce(0) { $0 + (Bridging.getWindowFrame(for: $1.windowID)?.width ?? 25) }
+                        // On additionne uniquement les largeurs des icônes actives
+                        let totalWidth = itemsToMeasure.reduce(0) { sum, item in
+                            guard let frame = Bridging.getWindowFrame(for: item.windowID) else { return sum }
+                            return sum + frame.width
+                        }
                         let padding: CGFloat = 14
-                        farLeftX = buttonWindow.frame.minX - totalWidth - padding - button.frame.width
+                        farLeftX = visibleMinX - totalWidth - padding - button.frame.width
                     }
                 } else {
-                    let hiddenItems = appState.itemManager.itemCache.managedItems(for: .hidden)
-                    let totalWidth = hiddenItems.reduce(0) { $0 + (Bridging.getWindowFrame(for: $1.windowID)?.width ?? 25) }
-                    farLeftX = buttonWindow.frame.minX - totalWidth - button.frame.width
+                    let totalWidth = itemsToMeasure.reduce(0) { sum, item in
+                        guard let frame = Bridging.getWindowFrame(for: item.windowID) else { return sum }
+                        return sum + frame.width
+                    }
+                    farLeftX = visibleMinX - totalWidth - button.frame.width
                 }
                 
                 let rightFrame = buttonWindow.frame

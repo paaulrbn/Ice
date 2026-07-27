@@ -167,7 +167,12 @@ final class MenuBarSection {
                 
                 await MainActor.run {
                     // Start the Ice icon animation precisely when the overlay is on screen!
-                    appState.menuBarManager.section(withName: .visible)?.controlItem.state = .showItems
+                    let visibleItem = appState.menuBarManager.section(withName: .visible)?.controlItem
+                    if visibleItem?.state == .showItems {
+                        visibleItem?.updateStatusItem(with: .showItems)
+                    } else {
+                        visibleItem?.state = .showItems
+                    }
                 }
                 
                 try? await Task.sleep(nanoseconds: 300_000_000)
@@ -185,7 +190,11 @@ final class MenuBarSection {
                         guard let hiddenSection = appState.menuBarManager.section(withName: .hidden),
                               let visibleSection = appState.menuBarManager.section(withName: .visible) else { return }
                         hiddenSection.controlItem.state = .showItems
-                        visibleSection.controlItem.state = .showItems
+                        if visibleSection.controlItem.state == .showItems {
+                            visibleSection.controlItem.updateStatusItem(with: .showItems)
+                        } else {
+                            visibleSection.controlItem.state = .showItems
+                        }
                     }
                 }
             }
