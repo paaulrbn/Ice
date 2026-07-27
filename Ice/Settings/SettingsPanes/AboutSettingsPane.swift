@@ -19,7 +19,7 @@ struct AboutSettingsPane: View {
     }
 
     private var contributeURL: URL {
-        URL(string: "https://github.com/jordanbaird/Ice")!
+        URL(string: "https://github.com/jordanbaird/Ice") ?? URL(fileURLWithPath: "")
     }
 
     private var issuesURL: URL {
@@ -27,7 +27,7 @@ struct AboutSettingsPane: View {
     }
 
     private var donateURL: URL {
-        URL(string: "https://icemenubar.app/Donate")!
+        URL(string: "https://icemenubar.app/Donate") ?? URL(fileURLWithPath: "")
     }
 
     private var lastUpdateCheckString: String {
