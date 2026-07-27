@@ -497,9 +497,10 @@ final class ControlItem {
                 var farLeftX: CGFloat = 0
 
                 // Détermine si la section Always Hidden est ouverte
-                let isAlwaysHidden = (appState.menuBarManager.iceBarPanel.currentSection == .alwaysHidden) ||
-                    NSEvent.modifierFlags.contains(.option) ||
-                    appState.menuBarManager.section(withName: .alwaysHidden)?.controlItem.state == .showItems
+                let condition1 = (appState.menuBarManager.iceBarPanel.currentSection == .alwaysHidden)
+                let condition2 = NSEvent.modifierFlags.contains(.option)
+                let condition3 = appState.menuBarManager.section(withName: .alwaysHidden)?.controlItem.state == .showItems
+                let isAlwaysHidden = condition1 || condition2 || condition3
 
                 var itemsToMeasure = appState.itemManager.itemCache.managedItems(for: .hidden)
                 if isAlwaysHidden {
