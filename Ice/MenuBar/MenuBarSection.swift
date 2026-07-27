@@ -164,7 +164,7 @@ final class MenuBarSection {
                 if let screenForIceBar {
                     await iceBarPanel?.show(section: name == .visible ? .hidden : name, on: screenForIceBar)
                 }
-                
+
                 await MainActor.run {
                     // Start the Ice icon animation precisely when the overlay is on screen!
                     let visibleItem = appState.menuBarManager.section(withName: .visible)?.controlItem
@@ -174,9 +174,9 @@ final class MenuBarSection {
                         visibleItem?.state = .showItems
                     }
                 }
-                
+
                 try? await Task.sleep(nanoseconds: 300_000_000)
-                
+
                 await MainActor.run {
                     iceBarPanel?.close()
                     controlItem.state = .showItems
@@ -222,7 +222,7 @@ final class MenuBarSection {
                 if let screenForIceBar {
                     await iceBarPanel?.show(section: visibleOverlay, on: screenForIceBar, isHiding: true)
                 }
-                
+
                 await MainActor.run {
                     controlItem.state = .hideItems
                     appState.menuBarManager.section(withName: .visible)?.controlItem.state = .hideItems
@@ -238,9 +238,9 @@ final class MenuBarSection {
                         alwaysHiddenSection.controlItem.state = .hideItems
                     }
                 }
-                
+
                 try? await Task.sleep(nanoseconds: 300_000_000)
-                
+
                 await MainActor.run {
                     iceBarPanel?.close()
                 }

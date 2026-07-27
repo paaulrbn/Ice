@@ -518,7 +518,7 @@ extension EventManager {
         else {
             return false
         }
-        
+
         if let frameOfNotch = screen.frameOfNotch {
             return mouseLocation.x >= frameOfNotch.maxX
         } else {

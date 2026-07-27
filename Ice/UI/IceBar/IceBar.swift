@@ -119,7 +119,7 @@ final class IceBarPanel: NSPanel {
                 else {
                     return originForRightOfScreen
                 }
-                
+
                 let visibleItems = appState.itemManager.itemCache.managedItems(for: .visible)
                 var minX = itemFrame.minX
                 for item in visibleItems {
@@ -127,12 +127,12 @@ final class IceBarPanel: NSPanel {
                         minX = frame.minX
                     }
                 }
-                
+
                 var iceBarX = minX - frame.width - 1
                 if screen.hasNotch, let rightArea = screen.auxiliaryTopRightArea {
                     iceBarX = max(iceBarX, rightArea.minX)
                 }
-                
+
                 // Décalage de 1 pixel vers la gauche (ajustement final)
                 return CGPoint(x: iceBarX, y: screen.frame.maxY - frame.height)
             }
@@ -171,13 +171,8 @@ final class IceBarPanel: NSPanel {
                     return originForRightOfScreen
                 }
 
-                var targetX = (itemFrame.midX - frame.width / 2).clamped(to: lowerBound...upperBound)
-                if screen.hasNotch, let rightArea = screen.auxiliaryTopRightArea {
-                    // S'assurer que la IceBar ne se superpose pas à l'encoche si elle est dans la barre des menus
-                    // ou même en dessous, pour que ce soit propre. Mais pour useIceBar, elle est en dessous.
-                    // Cependant, pour l'esthétique, on peut limiter
-                    // targetX = max(targetX, rightArea.minX)
-                }
+                let targetX = (itemFrame.midX - frame.width / 2).clamped(to: lowerBound...upperBound)
+
                 return CGPoint(x: targetX, y: originY)
             }
         }
@@ -378,14 +373,14 @@ private struct IceBarContentView: View {
                     if !useIceBar && section == .alwaysHidden {
                         let alwaysHiddenItems = itemManager.itemCache.managedItems(for: .alwaysHidden)
                         let hiddenItems = itemManager.itemCache.managedItems(for: .hidden)
-                        
+
                         ForEach(Array(alwaysHiddenItems.enumerated()), id: \.element.windowID) { index, item in
                             IceBarItemView(item: item, isHiding: isHiding, closePanel: closePanel, index: index)
                         }
-                        
+
                         // Compensation de 1 pixel pour l'emplacement natif du ControlItem de Ice
                         Spacer().frame(width: 1)
-                        
+
                         let offset = alwaysHiddenItems.count
                         ForEach(Array(hiddenItems.enumerated()), id: \.element.windowID) { index, item in
                             IceBarItemView(item: item, isHiding: isHiding, closePanel: closePanel, index: index + offset)
@@ -418,7 +413,7 @@ private struct IceBarItemView: View {
     let isHiding: Bool
     let closePanel: () -> Void
     let index: Int
-    
+
     init(item: MenuBarItem, isHiding: Bool = false, closePanel: @escaping () -> Void, index: Int) {
         self.item = item
         self.isHiding = isHiding

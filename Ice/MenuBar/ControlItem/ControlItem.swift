@@ -63,7 +63,7 @@ final class ControlItem {
 
     /// The floating window for the flying Ice icon.
     private var leftIconWindow: NSWindow?
-    
+
     /// Tracks the last animation state to prevent duplicate/interrupted animations.
     private var lastTargetIsOpening: Bool?
 
@@ -343,15 +343,15 @@ final class ControlItem {
             window.hasShadow = false
             window.level = .mainMenu + 2
             window.collectionBehavior = [.fullScreenAuxiliary, .ignoresCycle, .moveToActiveSpace]
-            
+
             let imageView = NSImageView()
             imageView.imageScaling = .scaleProportionallyDown
-            
+
             // Allow clicks to pass through if we want it to close?
             // Actually, clicking the left icon should close the menu.
             let click = NSClickGestureRecognizer(target: self, action: #selector(performAction))
             imageView.addGestureRecognizer(click)
-            
+
             window.contentView = imageView
             leftIconWindow = window
         }
@@ -383,7 +383,7 @@ final class ControlItem {
                 button.cell?.isEnabled = true
             }
         }
-        
+
         // Démarrage immédiat de l'animation pour répondre à la demande
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -425,13 +425,13 @@ final class ControlItem {
                 overlay1.image = button.image // Image de départ
                 overlay1.imageScaling = .scaleProportionallyDown
                 button.addSubview(overlay1)
-                
+
                 let overlay2 = NSImageView(frame: button.bounds.offsetBy(dx: 0, dy: 0.5))
                 overlay2.image = finalNewImage // Image d'arrivée
                 overlay2.imageScaling = .scaleProportionallyDown
                 overlay2.alphaValue = 0.0
                 button.addSubview(overlay2)
-                
+
                 if let currentImageSize = button.image?.size {
                     button.image = NSImage(size: currentImageSize)
                 } else {
@@ -446,7 +446,7 @@ final class ControlItem {
                         blurFilter.name = "blur"
                         blurFilter.setValue(0, forKey: kCIInputRadiusKey)
                         ov.layer?.filters = [blurFilter]
-                        
+
                         let blurAnimation = CAKeyframeAnimation(keyPath: "filters.blur.inputRadius")
                         blurAnimation.values = [0.0, 0.0, 4.0, 0.0, 0.0]
                         blurAnimation.keyTimes = [0.0, 0.2, 0.5, 0.9, 1.0]
@@ -480,11 +480,11 @@ final class ControlItem {
                     button.image = finalNewImage
                     return
                 }
-                
+
                 let isOpening = (state == .showItems)
-                
+
                 let useIceBar = appState.settingsManager.generalSettingsManager.useIceBar
-                
+
                 // On cherche la vraie bordure gauche des icônes visibles (on ignore celles fermées par l'OS pour ne pas surcompenser)
                 var visibleMinX = button.window?.frame.minX ?? 0
                 let visibleItems = appState.itemManager.itemCache.managedItems(for: .visible)
@@ -493,19 +493,19 @@ final class ControlItem {
                         visibleMinX = frame.minX
                     }
                 }
-                
+
                 var farLeftX: CGFloat = 0
-                
+
                 // Détermine si la section Always Hidden est ouverte
-                let isAlwaysHidden = (appState.menuBarManager.iceBarPanel.currentSection == .alwaysHidden) || 
-                                     NSEvent.modifierFlags.contains(.option) ||
-                                     appState.menuBarManager.section(withName: .alwaysHidden)?.controlItem.state == .showItems
-                
+                let isAlwaysHidden = (appState.menuBarManager.iceBarPanel.currentSection == .alwaysHidden) ||
+                    NSEvent.modifierFlags.contains(.option) ||
+                    appState.menuBarManager.section(withName: .alwaysHidden)?.controlItem.state == .showItems
+
                 var itemsToMeasure = appState.itemManager.itemCache.managedItems(for: .hidden)
                 if isAlwaysHidden {
                     itemsToMeasure += appState.itemManager.itemCache.managedItems(for: .alwaysHidden)
                 }
-                
+
                 if useIceBar {
                     let iceBarFrame = appState.menuBarManager.iceBarPanel.frame
                     if iceBarFrame.width > 0 {
@@ -526,18 +526,18 @@ final class ControlItem {
                     }
                     farLeftX = visibleMinX - totalWidth - button.frame.width
                 }
-                
+
                 if let screen = buttonWindow.screen, screen.hasNotch, let rightArea = screen.auxiliaryTopRightArea {
                     farLeftX = max(farLeftX, rightArea.minX)
                 }
-                
+
                 let buttonRectInWindow = button.convert(button.bounds, to: nil)
                 let rightFrame = buttonWindow.convertToScreen(buttonRectInWindow)
                 let leftFrame = CGRect(x: farLeftX, y: rightFrame.minY, width: rightFrame.width, height: rightFrame.height)
-                
+
                 let startFrame = isOpening ? rightFrame : leftFrame
                 let endFrame = isOpening ? leftFrame : rightFrame
-                
+
                 if self.lastTargetIsOpening == isOpening {
                     // Si une animation vers la même destination est déjà en cours,
                     // on se contente de mettre à jour le frame cible pour éviter un téléport ou un arrêt.
@@ -552,42 +552,42 @@ final class ControlItem {
                     return
                 }
                 self.lastTargetIsOpening = isOpening
-                
+
                 let icon = appState.settingsManager.generalSettingsManager.iceIcon
                 let startImage = (isOpening ? icon.hidden.nsImage(for: appState) : icon.visible.nsImage(for: appState))?.copy() as? NSImage
                 let endImage = (isOpening ? icon.visible.nsImage(for: appState) : icon.hidden.nsImage(for: appState))?.copy() as? NSImage
-                
+
                 startImage?.isTemplate = true
                 endImage?.isTemplate = true
-                
+
                 let tintColor: NSColor
                 if let averageColor = appState.menuBarManager.averageColorInfo?.color {
                     tintColor = (averageColor.brightness ?? 0) > 0.67 ? .black : .white
                 } else {
                     tintColor = .white
                 }
-                
+
                 let containerView = NSView(frame: button.bounds)
                 containerView.wantsLayer = true
-                
+
                 let click = NSClickGestureRecognizer(target: self, action: #selector(performAction))
                 containerView.addGestureRecognizer(click)
-                
+
                 let overlay1 = NSImageView(frame: button.bounds.offsetBy(dx: 0, dy: 0.5))
                 overlay1.image = startImage
                 overlay1.imageScaling = .scaleProportionallyDown
                 overlay1.contentTintColor = tintColor
-                
+
                 let overlay2 = NSImageView(frame: button.bounds.offsetBy(dx: 0, dy: 0.5))
                 overlay2.image = endImage
                 overlay2.imageScaling = .scaleProportionallyDown
                 overlay2.contentTintColor = tintColor
                 overlay2.alphaValue = 0.0
-                
+
                 containerView.addSubview(overlay1)
                 containerView.addSubview(overlay2)
                 fWindow.contentView = containerView
-                
+
                 for ov in [overlay1, overlay2] {
                     ov.wantsLayer = true
                     ov.layerUsesCoreImageFilters = true
@@ -596,7 +596,7 @@ final class ControlItem {
                         blurFilter.name = "blur"
                         blurFilter.setValue(0, forKey: kCIInputRadiusKey)
                         ov.layer?.filters = [blurFilter]
-                        
+
                         let blurAnimation = CAKeyframeAnimation(keyPath: "filters.blur.inputRadius")
                         blurAnimation.values = [0.0, 0.0, 4.0, 0.0, 0.0]
                         blurAnimation.keyTimes = [0.0, 0.2, 0.5, 0.9, 1.0]
@@ -605,15 +605,15 @@ final class ControlItem {
                         ov.layer?.add(blurAnimation, forKey: "blurAnim")
                     }
                 }
-                
+
                 fWindow.setFrame(startFrame, display: true)
                 fWindow.orderFrontRegardless()
                 fWindow.alphaValue = 1.0
-                
+
                 // SItem affiche une image transparente pour garder sa taille, ou nil
                 let emptyImage = NSImage(size: button.image?.size ?? CGSize(width: 25, height: 25))
                 button.image = isOpening ? emptyImage : nil
-                
+
                 NSAnimationContext.runAnimationGroup({ context in
                     context.duration = 0.25
                     context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
@@ -625,7 +625,7 @@ final class ControlItem {
                         button.image = finalNewImage
                     }
                 })
-                
+
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     NSAnimationContext.runAnimationGroup({ context in
                         context.duration = 0.15
