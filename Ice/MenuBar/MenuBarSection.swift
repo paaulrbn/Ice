@@ -209,7 +209,7 @@ final class MenuBarSection {
             }
         case .visible, .hidden, .alwaysHidden:
             Task {
-                let visibleOverlay = (appState.menuBarManager.section(withName: .hidden)?.isHidden == false) ? MenuBarSection.Name.hidden : .alwaysHidden
+                let visibleOverlay = (appState.menuBarManager.section(withName: .alwaysHidden)?.isHidden == false) ? MenuBarSection.Name.alwaysHidden : .hidden
                 if let screenForIceBar {
                     await iceBarPanel?.show(section: visibleOverlay, on: screenForIceBar, isHiding: true)
                 }

@@ -61,6 +61,12 @@ final class ControlItem {
         statusItem.button?.window
     }
 
+    /// The floating window for the flying Ice icon.
+    private var leftIconWindow: NSWindow?
+    
+    /// Tracks the last animation state to prevent duplicate/interrupted animations.
+    private var lastTargetIsOpening: Bool?
+
     /// The identifier of the control item's window.
     var windowID: CGWindowID? {
         guard let window else {
@@ -329,6 +335,28 @@ final class ControlItem {
         button.action = #selector(performAction)
     }
 
+    private func setupLeftIconWindowIfNeeded() {
+        if leftIconWindow == nil {
+            let window = NSWindow(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            window.backgroundColor = .clear
+            window.isOpaque = false
+            window.hasShadow = false
+            window.level = .mainMenu + 2
+            window.collectionBehavior = [.fullScreenAuxiliary, .ignoresCycle, .moveToActiveSpace]
+            
+            let imageView = NSImageView()
+            imageView.imageScaling = .scaleProportionallyDown
+            
+            // Allow clicks to pass through if we want it to close?
+            // Actually, clicking the left icon should close the menu.
+            let click = NSClickGestureRecognizer(target: self, action: #selector(performAction))
+            imageView.addGestureRecognizer(click)
+            
+            window.contentView = imageView
+            leftIconWindow = window
+        }
+    }
+
     /// Updates the appearance of the status item using the given hiding state.
     private func updateStatusItem(with state: HidingState) {
         guard
@@ -357,7 +385,8 @@ final class ControlItem {
         }
         
         // Démarrage immédiat de l'animation pour répondre à la demande
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
             // Déterminer la nouvelle image
             let newImage: NSImage?
             switch section.name {
@@ -379,9 +408,9 @@ final class ControlItem {
                 case .showItems:
                     switch section.name {
                     case .hidden:
-                        newImage = ControlItemImage.builtin(.chevronLarge).nsImage(for: appState)
+                        newImage = NSImage(size: CGSize(width: 1, height: 1)) // Invisible au lieu de chevronLarge
                     case .alwaysHidden:
-                        newImage = ControlItemImage.builtin(.chevronSmall).nsImage(for: appState)
+                        newImage = NSImage(size: CGSize(width: 1, height: 1)) // Invisible au lieu de chevronSmall
                     case .visible: newImage = nil
                     }
                 }
@@ -396,58 +425,190 @@ final class ControlItem {
                 }
             }
 
-            // Astuce pour éviter le bug de décalage de NSButton : utiliser une NSImageView temporaire
-            let overlay1 = NSImageView(frame: button.bounds.offsetBy(dx: 0, dy: 0.5))
-            overlay1.image = button.image // Image de départ
-            overlay1.imageScaling = .scaleProportionallyDown
-            button.addSubview(overlay1)
-            
-            let overlay2 = NSImageView(frame: button.bounds.offsetBy(dx: 0, dy: 0.5))
-            overlay2.image = finalNewImage // Image d'arrivée
-            overlay2.imageScaling = .scaleProportionallyDown
-            overlay2.alphaValue = 0.0
-            button.addSubview(overlay2)
-            
-            if let currentImageSize = button.image?.size {
-                button.image = NSImage(size: currentImageSize)
-            } else {
-                button.image = nil // Cacher l'image native
-            }
-
-            for ov in [overlay1, overlay2] {
-                ov.wantsLayer = true
-                ov.layerUsesCoreImageFilters = true
-                if let blurFilter = CIFilter(name: "CIGaussianBlur") {
-                    blurFilter.setDefaults()
-                    blurFilter.name = "blur"
-                    blurFilter.setValue(0, forKey: kCIInputRadiusKey)
-                    ov.layer?.filters = [blurFilter]
-                    
-                    let blurAnimation = CAKeyframeAnimation(keyPath: "filters.blur.inputRadius")
-                    blurAnimation.values = [0.0, 0.0, 4.0, 0.0, 0.0]
-                    blurAnimation.keyTimes = [0.0, 0.2, 0.5, 0.9, 1.0]
-                    blurAnimation.duration = 0.25
-                    blurAnimation.timingFunction = CAMediaTimingFunction(name: .linear)
-                    ov.layer?.add(blurAnimation, forKey: "blurAnim")
+            if section.name != .visible {
+                // Astuce pour éviter le bug de décalage de NSButton : utiliser une NSImageView temporaire
+                let overlay1 = NSImageView(frame: button.bounds.offsetBy(dx: 0, dy: 0.5))
+                overlay1.image = button.image // Image de départ
+                overlay1.imageScaling = .scaleProportionallyDown
+                button.addSubview(overlay1)
+                
+                let overlay2 = NSImageView(frame: button.bounds.offsetBy(dx: 0, dy: 0.5))
+                overlay2.image = finalNewImage // Image d'arrivée
+                overlay2.imageScaling = .scaleProportionallyDown
+                overlay2.alphaValue = 0.0
+                button.addSubview(overlay2)
+                
+                if let currentImageSize = button.image?.size {
+                    button.image = NSImage(size: currentImageSize)
+                } else {
+                    button.image = nil // Cacher l'image native
                 }
-            }
 
-            NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.25
-                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                overlay1.animator().alphaValue = 0.0
-            }, completionHandler: {
-                overlay1.removeFromSuperview()
-                overlay2.removeFromSuperview()
-                button.image = finalNewImage
-            })
+                for ov in [overlay1, overlay2] {
+                    ov.wantsLayer = true
+                    ov.layerUsesCoreImageFilters = true
+                    if let blurFilter = CIFilter(name: "CIGaussianBlur") {
+                        blurFilter.setDefaults()
+                        blurFilter.name = "blur"
+                        blurFilter.setValue(0, forKey: kCIInputRadiusKey)
+                        ov.layer?.filters = [blurFilter]
+                        
+                        let blurAnimation = CAKeyframeAnimation(keyPath: "filters.blur.inputRadius")
+                        blurAnimation.values = [0.0, 0.0, 4.0, 0.0, 0.0]
+                        blurAnimation.keyTimes = [0.0, 0.2, 0.5, 0.9, 1.0]
+                        blurAnimation.duration = 0.25
+                        blurAnimation.timingFunction = CAMediaTimingFunction(name: .linear)
+                        ov.layer?.add(blurAnimation, forKey: "blurAnim")
+                    }
+                }
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 NSAnimationContext.runAnimationGroup({ context in
-                    context.duration = 0.15
+                    context.duration = 0.25
                     context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                    overlay2.animator().alphaValue = 1.0
+                    overlay1.animator().alphaValue = 0.0
+                }, completionHandler: {
+                    overlay1.removeFromSuperview()
+                    overlay2.removeFromSuperview()
+                    button.image = finalNewImage
                 })
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    NSAnimationContext.runAnimationGroup({ context in
+                        context.duration = 0.15
+                        context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                        overlay2.animator().alphaValue = 1.0
+                    })
+                }
+            } else {
+                // Pour SItem (.visible), on fait l'animation de translation ET de morphing
+                self.setupLeftIconWindowIfNeeded()
+                guard let fWindow = self.leftIconWindow, let buttonWindow = button.window else {
+                    button.image = finalNewImage
+                    return
+                }
+                
+                let isOpening = (state == .showItems)
+                
+                let useIceBar = appState.settingsManager.generalSettingsManager.useIceBar
+                var farLeftX: CGFloat = 0
+                
+                if useIceBar {
+                    let iceBarFrame = appState.menuBarManager.iceBarPanel.frame
+                    if iceBarFrame.width > 0 {
+                        farLeftX = iceBarFrame.minX - button.frame.width - 2
+                    } else {
+                        let hiddenItems = appState.itemManager.itemCache.managedItems(for: .hidden)
+                        let totalWidth = hiddenItems.reduce(0) { $0 + (Bridging.getWindowFrame(for: $1.windowID)?.width ?? 25) }
+                        let padding: CGFloat = 14
+                        farLeftX = buttonWindow.frame.minX - totalWidth - padding - button.frame.width
+                    }
+                } else {
+                    let hiddenItems = appState.itemManager.itemCache.managedItems(for: .hidden)
+                    let totalWidth = hiddenItems.reduce(0) { $0 + (Bridging.getWindowFrame(for: $1.windowID)?.width ?? 25) }
+                    farLeftX = buttonWindow.frame.minX - totalWidth - button.frame.width
+                }
+                
+                let rightFrame = buttonWindow.frame
+                let leftFrame = CGRect(x: farLeftX, y: buttonWindow.frame.minY, width: buttonWindow.frame.width, height: buttonWindow.frame.height)
+                
+                let startFrame = isOpening ? rightFrame : leftFrame
+                let endFrame = isOpening ? leftFrame : rightFrame
+                
+                if self.lastTargetIsOpening == isOpening {
+                    // Si une animation vers la même destination est déjà en cours,
+                    // on se contente de mettre à jour le frame cible pour éviter un téléport ou un arrêt.
+                    NSAnimationContext.runAnimationGroup { context in
+                        context.duration = 0.25
+                        context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                        fWindow.animator().setFrame(endFrame, display: true)
+                    }
+                    if !isOpening {
+                        button.image = finalNewImage
+                    }
+                    return
+                }
+                self.lastTargetIsOpening = isOpening
+                
+                let icon = appState.settingsManager.generalSettingsManager.iceIcon
+                let startImage = (isOpening ? icon.hidden.nsImage(for: appState) : icon.visible.nsImage(for: appState))?.copy() as? NSImage
+                let endImage = (isOpening ? icon.visible.nsImage(for: appState) : icon.hidden.nsImage(for: appState))?.copy() as? NSImage
+                
+                startImage?.isTemplate = true
+                endImage?.isTemplate = true
+                
+                let tintColor: NSColor
+                if let averageColor = appState.menuBarManager.averageColorInfo?.color {
+                    tintColor = (averageColor.brightness ?? 0) > 0.67 ? .black : .white
+                } else {
+                    tintColor = .white
+                }
+                
+                let containerView = NSView(frame: button.bounds)
+                containerView.wantsLayer = true
+                
+                let click = NSClickGestureRecognizer(target: self, action: #selector(performAction))
+                containerView.addGestureRecognizer(click)
+                
+                let overlay1 = NSImageView(frame: button.bounds.offsetBy(dx: 0, dy: 0.5))
+                overlay1.image = startImage
+                overlay1.imageScaling = .scaleProportionallyDown
+                overlay1.contentTintColor = tintColor
+                
+                let overlay2 = NSImageView(frame: button.bounds.offsetBy(dx: 0, dy: 0.5))
+                overlay2.image = endImage
+                overlay2.imageScaling = .scaleProportionallyDown
+                overlay2.contentTintColor = tintColor
+                overlay2.alphaValue = 0.0
+                
+                containerView.addSubview(overlay1)
+                containerView.addSubview(overlay2)
+                fWindow.contentView = containerView
+                
+                for ov in [overlay1, overlay2] {
+                    ov.wantsLayer = true
+                    ov.layerUsesCoreImageFilters = true
+                    if let blurFilter = CIFilter(name: "CIGaussianBlur") {
+                        blurFilter.setDefaults()
+                        blurFilter.name = "blur"
+                        blurFilter.setValue(0, forKey: kCIInputRadiusKey)
+                        ov.layer?.filters = [blurFilter]
+                        
+                        let blurAnimation = CAKeyframeAnimation(keyPath: "filters.blur.inputRadius")
+                        blurAnimation.values = [0.0, 0.0, 4.0, 0.0, 0.0]
+                        blurAnimation.keyTimes = [0.0, 0.2, 0.5, 0.9, 1.0]
+                        blurAnimation.duration = 0.25
+                        blurAnimation.timingFunction = CAMediaTimingFunction(name: .linear)
+                        ov.layer?.add(blurAnimation, forKey: "blurAnim")
+                    }
+                }
+                
+                fWindow.setFrame(startFrame, display: true)
+                fWindow.orderFrontRegardless()
+                fWindow.alphaValue = 1.0
+                
+                // SItem affiche une image transparente pour garder sa taille, ou nil
+                let emptyImage = NSImage(size: button.image?.size ?? CGSize(width: 25, height: 25))
+                button.image = isOpening ? emptyImage : nil
+                
+                NSAnimationContext.runAnimationGroup({ context in
+                    context.duration = 0.25
+                    context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                    fWindow.animator().setFrame(endFrame, display: true)
+                    overlay1.animator().alphaValue = 0.0
+                }, completionHandler: {
+                    if !isOpening {
+                        fWindow.orderOut(nil)
+                        button.image = finalNewImage
+                    }
+                })
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    NSAnimationContext.runAnimationGroup({ context in
+                        context.duration = 0.15
+                        context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                        overlay2.animator().alphaValue = 1.0
+                    })
+                }
             }
         }
     }

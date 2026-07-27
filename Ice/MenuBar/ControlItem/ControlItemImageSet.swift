@@ -47,11 +47,6 @@ extension ControlItemImageSet {
     /// The image sets that the user can choose to display in the Ice icon.
     static let userSelectableIceIcons = [
         ControlItemImageSet(
-            name: .arrow,
-            hidden: .symbol("arrowshape.left.fill"),
-            visible: .symbol("arrowshape.right.fill")
-        ),
-        ControlItemImageSet(
             name: .chevron,
             hidden: .symbol("chevron.left"),
             visible: .symbol("chevron.right")
@@ -62,11 +57,6 @@ extension ControlItemImageSet {
             visible: .catalog("Right")
         ),
         ControlItemImageSet(
-            name: .door,
-            hidden: .symbol("door.left.hand.closed"),
-            visible: .symbol("door.left.hand.open")
-        ),
-        ControlItemImageSet(
             name: .dot,
             hidden: .catalog("DotFill"),
             visible: .catalog("DotStroke")
@@ -75,16 +65,6 @@ extension ControlItemImageSet {
             name: .ellipsis,
             hidden: .catalog("EllipsisFill"),
             visible: .catalog("EllipsisStroke")
-        ),
-        ControlItemImageSet(
-            name: .iceCube,
-            hidden: .catalog("IceCubeStroke"),
-            visible: .catalog("IceCubeFill")
-        ),
-        ControlItemImageSet(
-            name: .sunglasses,
-            hidden: .symbol("sunglasses.fill"),
-            visible: .symbol("sunglasses")
         ),
     ]
 }

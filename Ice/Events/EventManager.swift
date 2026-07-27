@@ -154,23 +154,18 @@ extension EventManager {
             return
         }
 
-        Task {
-            // Short delay helps the toggle action feel more natural.
-            try? await Task.sleep(for: .milliseconds(50))
-
-            if NSEvent.modifierFlags == .control {
-                handleShowRightClickMenu()
-            } else if
-                NSEvent.modifierFlags == .option,
-                appState.settingsManager.advancedSettingsManager.canToggleAlwaysHiddenSection
-            {
-                if let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden) {
-                    alwaysHiddenSection.toggle()
-                }
-            } else {
-                if let hiddenSection = appState.menuBarManager.section(withName: .hidden) {
-                    hiddenSection.toggle()
-                }
+        if NSEvent.modifierFlags == .control {
+            handleShowRightClickMenu()
+        } else if
+            NSEvent.modifierFlags == .option,
+            appState.settingsManager.advancedSettingsManager.canToggleAlwaysHiddenSection
+        {
+            if let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden) {
+                alwaysHiddenSection.toggle()
+            }
+        } else {
+            if let hiddenSection = appState.menuBarManager.section(withName: .hidden) {
+                hiddenSection.toggle()
             }
         }
     }
@@ -513,10 +508,23 @@ extension EventManager {
     /// A Boolean value that indicates whether the mouse pointer is within
     /// the bounds of an empty space in the menu bar.
     var isMouseInsideEmptyMenuBarSpace: Bool {
-        isMouseInsideMenuBar &&
-        !isMouseInsideApplicationMenu &&
-        !isMouseInsideMenuBarItem &&
-        !isMouseInsideNotch
+        guard
+            isMouseInsideMenuBar,
+            !isMouseInsideApplicationMenu,
+            !isMouseInsideMenuBarItem,
+            !isMouseInsideNotch,
+            let screen = bestScreen,
+            let mouseLocation = MouseCursor.locationAppKit
+        else {
+            return false
+        }
+        
+        if let frameOfNotch = screen.frameOfNotch {
+            return mouseLocation.x >= frameOfNotch.maxX
+        } else {
+            // Sans notch, on limite à la moitié droite
+            return mouseLocation.x >= screen.frame.midX
+        }
     }
 
     /// A Boolean value that indicates whether the mouse pointer is within
