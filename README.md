@@ -1,4 +1,4 @@
-<div style="text-align: center;">
+<div align="center">
     <img src="Ice/Assets.xcassets/AppIcon.appiconset/icon_256x256.png" alt="Ice Icon" width="256" height="256">
     <h1>Ice</h1>
 </div>
