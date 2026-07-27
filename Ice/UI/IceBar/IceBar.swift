@@ -104,10 +104,32 @@ final class IceBarPanel: NSPanel {
 
         func getOrigin(for iceBarLocation: IceBarLocation) -> CGPoint {
             let menuBarHeight = screen.getMenuBarHeight() ?? 0
-            let originY = ((screen.frame.maxY - 1) - menuBarHeight) - frame.height
+            let useIceBar = appState.settingsManager.generalSettingsManager.useIceBar
+            let originY = useIceBar ? (((screen.frame.maxY - 1) - menuBarHeight) - frame.height) : ((screen.frame.maxY - 1) - frame.height)
 
             var originForRightOfScreen: CGPoint {
                 CGPoint(x: screen.frame.maxX - frame.width, y: originY)
+            }
+
+            if !useIceBar {
+                guard
+                    let section = appState.menuBarManager.section(withName: .visible),
+                    let windowID = section.controlItem.windowID,
+                    let itemFrame = Bridging.getWindowFrame(for: windowID)
+                else {
+                    return originForRightOfScreen
+                }
+                
+                let visibleItems = appState.itemManager.itemCache.managedItems(for: .visible)
+                var minX = itemFrame.minX
+                for item in visibleItems {
+                    if let frame = Bridging.getWindowFrame(for: item.windowID), frame.minX > 0, frame.minX < minX {
+                        minX = frame.minX
+                    }
+                }
+                
+                // Décalage de 1 pixel vers la gauche (ajustement final)
+                return CGPoint(x: minX - frame.width - 1, y: screen.frame.maxY - frame.height)
             }
 
             switch iceBarLocation {
@@ -151,7 +173,7 @@ final class IceBarPanel: NSPanel {
         setFrameOrigin(getOrigin(for: appState.settingsManager.generalSettingsManager.iceBarLocation))
     }
 
-    func show(section: MenuBarSection.Name, on screen: NSScreen) async {
+    func show(section: MenuBarSection.Name, on screen: NSScreen, isHiding: Bool = false) async {
         guard let appState else {
             return
         }
@@ -166,7 +188,7 @@ final class IceBarPanel: NSPanel {
             await appState.imageCache.updateCache()
         }
 
-        contentView = IceBarHostingView(appState: appState, colorManager: colorManager, screen: screen, section: section) { [weak self] in
+        contentView = IceBarHostingView(appState: appState, colorManager: colorManager, screen: screen, section: section, isHiding: isHiding) { [weak self] in
             self?.close()
         }
 
@@ -201,10 +223,11 @@ private final class IceBarHostingView: NSHostingView<AnyView> {
         colorManager: IceBarColorManager,
         screen: NSScreen,
         section: MenuBarSection.Name,
+        isHiding: Bool = false,
         closePanel: @escaping () -> Void
     ) {
         super.init(
-            rootView: IceBarContentView(screen: screen, section: section, closePanel: closePanel)
+            rootView: IceBarContentView(screen: screen, section: section, isHiding: isHiding, closePanel: closePanel)
                 .environmentObject(appState)
                 .environmentObject(appState.imageCache)
                 .environmentObject(appState.itemManager)
@@ -242,6 +265,7 @@ private struct IceBarContentView: View {
 
     let screen: NSScreen
     let section: MenuBarSection.Name
+    var isHiding: Bool = false
     let closePanel: () -> Void
 
     private var items: [MenuBarItem] {
@@ -253,11 +277,11 @@ private struct IceBarContentView: View {
     }
 
     private var horizontalPadding: CGFloat {
-        configuration.hasRoundedShape ? 7 : 5
+        appState.settingsManager.generalSettingsManager.useIceBar ? (configuration.hasRoundedShape ? 7 : 5) : 0
     }
 
     private var verticalPadding: CGFloat {
-        screen.hasNotch ? 0 : 2
+        appState.settingsManager.generalSettingsManager.useIceBar ? (screen.hasNotch ? 0 : 2) : 0
     }
 
     private var contentHeight: CGFloat? {
@@ -283,24 +307,30 @@ private struct IceBarContentView: View {
     }
 
     var body: some View {
+        let useIceBar = appState.settingsManager.generalSettingsManager.useIceBar
         ZStack {
-            content
-                .frame(height: contentHeight)
-                .padding(.horizontal, horizontalPadding)
-                .padding(.vertical, verticalPadding)
-                .layoutBarStyle(appState: appState, averageColorInfo: colorManager.colorInfo)
-                .foregroundStyle(colorManager.colorInfo?.color.brightness ?? 0 > 0.67 ? .black : .white)
-                .clipShape(clipShape)
-                .shadow(color: .black.opacity(shadowOpacity), radius: 2.5)
+            if useIceBar {
+                content
+                    .frame(height: contentHeight)
+                    .padding(.horizontal, horizontalPadding)
+                    .padding(.vertical, verticalPadding)
+                    .layoutBarStyle(appState: appState, averageColorInfo: colorManager.colorInfo)
+                    .foregroundStyle(colorManager.colorInfo?.color.brightness ?? 0 > 0.67 ? .black : .white)
+                    .clipShape(clipShape)
+                    .shadow(color: .black.opacity(shadowOpacity), radius: 2.5)
 
-            if configuration.current.hasBorder {
-                clipShape
-                    .inset(by: configuration.current.borderWidth / 2)
-                    .stroke(lineWidth: configuration.current.borderWidth)
-                    .foregroundStyle(Color(cgColor: configuration.current.borderColor))
+                if configuration.current.hasBorder {
+                    clipShape
+                        .inset(by: configuration.current.borderWidth / 2)
+                        .stroke(lineWidth: configuration.current.borderWidth)
+                        .foregroundStyle(Color(cgColor: configuration.current.borderColor))
+                }
+            } else {
+                content
+                    .frame(height: contentHeight)
             }
         }
-        .padding(5)
+        .padding(useIceBar ? 5 : 0)
         .frame(maxWidth: imageCache.screen?.frame.width)
         .fixedSize()
         .onFrameChange(update: $frame)
@@ -332,8 +362,26 @@ private struct IceBarContentView: View {
         } else {
             ScrollView(.horizontal) {
                 HStack(spacing: 0) {
-                    ForEach(items, id: \.windowID) { item in
-                        IceBarItemView(item: item, closePanel: closePanel)
+                    let useIceBar = appState.settingsManager.generalSettingsManager.useIceBar
+                    if !useIceBar && section == .alwaysHidden {
+                        let alwaysHiddenItems = itemManager.itemCache.managedItems(for: .alwaysHidden)
+                        let hiddenItems = itemManager.itemCache.managedItems(for: .hidden)
+                        
+                        ForEach(Array(alwaysHiddenItems.enumerated()), id: \.element.windowID) { index, item in
+                            IceBarItemView(item: item, isHiding: isHiding, closePanel: closePanel, index: index)
+                        }
+                        
+                        // Compensation de 1 pixel pour l'emplacement natif du ControlItem de Ice
+                        Spacer().frame(width: 1)
+                        
+                        let offset = alwaysHiddenItems.count
+                        ForEach(Array(hiddenItems.enumerated()), id: \.element.windowID) { index, item in
+                            IceBarItemView(item: item, isHiding: isHiding, closePanel: closePanel, index: index + offset)
+                        }
+                    } else {
+                        ForEach(Array(items.enumerated()), id: \.element.windowID) { index, item in
+                            IceBarItemView(item: item, isHiding: isHiding, closePanel: closePanel, index: index)
+                        }
                     }
                 }
             }
@@ -352,9 +400,20 @@ private struct IceBarContentView: View {
 private struct IceBarItemView: View {
     @EnvironmentObject var imageCache: MenuBarItemImageCache
     @EnvironmentObject var itemManager: MenuBarItemManager
+    @State private var isVisible: Bool
 
     let item: MenuBarItem
+    let isHiding: Bool
     let closePanel: () -> Void
+    let index: Int
+    
+    init(item: MenuBarItem, isHiding: Bool = false, closePanel: @escaping () -> Void, index: Int) {
+        self.item = item
+        self.isHiding = isHiding
+        self.closePanel = closePanel
+        self.index = index
+        self._isVisible = State(initialValue: isHiding)
+    }
 
     private var leftClickAction: () -> Void {
         return { [weak itemManager] in
@@ -406,6 +465,18 @@ private struct IceBarItemView: View {
                 .accessibilityLabel(item.displayName)
                 .accessibilityAction(named: "left click", leftClickAction)
                 .accessibilityAction(named: "right click", rightClickAction)
+                .opacity(isVisible ? 1 : 0)
+                .blur(radius: isVisible ? 0 : 10)
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            isVisible = !isHiding
+                        }
+                    }
+                }
+                .onDisappear {
+                    isVisible = false
+                }
         }
     }
 }

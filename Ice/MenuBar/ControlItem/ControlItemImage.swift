@@ -37,7 +37,9 @@ enum ControlItemImage: Codable, Hashable {
             let originalHeight = originalImage.size.height
             let ratio = max(originalWidth / 25, originalHeight / 17)
             let newSize = CGSize(width: originalWidth / ratio, height: originalHeight / ratio)
-            return originalImage.resized(to: newSize)
+            let resized = originalImage.resized(to: newSize)
+            resized.isTemplate = true
+            return resized
         case .data(let data):
             let image = NSImage(data: data)
             let generalSettingsManager = appState.settingsManager.generalSettingsManager

@@ -159,31 +159,36 @@ final class MenuBarSection {
                     section.controlItem.state = .hideItems
                 }
             }
-        case .visible:
-            iceBarPanel?.close()
-            guard let hiddenSection = appState.menuBarManager.section(withName: .hidden) else {
-                return
+        case .visible, .hidden, .alwaysHidden:
+            Task {
+                if let screenForIceBar {
+                    await iceBarPanel?.show(section: name == .visible ? .hidden : name, on: screenForIceBar)
+                }
+                
+                await MainActor.run {
+                    // Start the Ice icon animation precisely when the overlay is on screen!
+                    appState.menuBarManager.section(withName: .visible)?.controlItem.state = .showItems
+                }
+                
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                
+                await MainActor.run {
+                    iceBarPanel?.close()
+                    controlItem.state = .showItems
+                    if name == .visible {
+                        guard let hiddenSection = appState.menuBarManager.section(withName: .hidden) else { return }
+                        hiddenSection.controlItem.state = .showItems
+                    } else if name == .hidden {
+                        guard let visibleSection = appState.menuBarManager.section(withName: .visible) else { return }
+                        visibleSection.controlItem.state = .showItems
+                    } else if name == .alwaysHidden {
+                        guard let hiddenSection = appState.menuBarManager.section(withName: .hidden),
+                              let visibleSection = appState.menuBarManager.section(withName: .visible) else { return }
+                        hiddenSection.controlItem.state = .showItems
+                        visibleSection.controlItem.state = .showItems
+                    }
+                }
             }
-            controlItem.state = .showItems
-            hiddenSection.controlItem.state = .showItems
-        case .hidden:
-            iceBarPanel?.close()
-            guard let visibleSection = appState.menuBarManager.section(withName: .visible) else {
-                return
-            }
-            controlItem.state = .showItems
-            visibleSection.controlItem.state = .showItems
-        case .alwaysHidden:
-            iceBarPanel?.close()
-            guard
-                let hiddenSection = appState.menuBarManager.section(withName: .hidden),
-                let visibleSection = appState.menuBarManager.section(withName: .visible)
-            else {
-                return
-            }
-            controlItem.state = .showItems
-            hiddenSection.controlItem.state = .showItems
-            visibleSection.controlItem.state = .showItems
         }
         startRehideChecks()
     }
@@ -202,28 +207,35 @@ final class MenuBarSection {
             for section in appState.menuBarManager.sections {
                 section.controlItem.state = .hideItems
             }
-        case .visible:
-            guard
-                let hiddenSection = appState.menuBarManager.section(withName: .hidden),
-                let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden)
-            else {
-                return
+        case .visible, .hidden, .alwaysHidden:
+            Task {
+                let visibleOverlay = (appState.menuBarManager.section(withName: .hidden)?.isHidden == false) ? MenuBarSection.Name.hidden : .alwaysHidden
+                if let screenForIceBar {
+                    await iceBarPanel?.show(section: visibleOverlay, on: screenForIceBar, isHiding: true)
+                }
+                
+                await MainActor.run {
+                    controlItem.state = .hideItems
+                    appState.menuBarManager.section(withName: .visible)?.controlItem.state = .hideItems
+                    if name == .visible {
+                        guard let hiddenSection = appState.menuBarManager.section(withName: .hidden),
+                              let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden) else { return }
+                        hiddenSection.controlItem.state = .hideItems
+                        alwaysHiddenSection.controlItem.state = .hideItems
+                    } else if name == .hidden {
+                        guard let visibleSection = appState.menuBarManager.section(withName: .visible),
+                              let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden) else { return }
+                        visibleSection.controlItem.state = .hideItems
+                        alwaysHiddenSection.controlItem.state = .hideItems
+                    }
+                }
+                
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                
+                await MainActor.run {
+                    iceBarPanel?.close()
+                }
             }
-            controlItem.state = .hideItems
-            hiddenSection.controlItem.state = .hideItems
-            alwaysHiddenSection.controlItem.state = .hideItems
-        case .hidden:
-            guard
-                let visibleSection = appState.menuBarManager.section(withName: .visible),
-                let alwaysHiddenSection = appState.menuBarManager.section(withName: .alwaysHidden)
-            else {
-                return
-            }
-            controlItem.state = .hideItems
-            visibleSection.controlItem.state = .hideItems
-            alwaysHiddenSection.controlItem.state = .hideItems
-        case .alwaysHidden:
-            controlItem.state = .hideItems
         }
         appState.allowShowOnHover()
         stopRehideChecks()

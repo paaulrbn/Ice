@@ -139,13 +139,13 @@ final class ControlItem {
     private func configureCancellables() {
         var c = Set<AnyCancellable>()
 
-        $state
+        $state.removeDuplicates()
             .sink { [weak self] state in
                 self?.updateStatusItem(with: state)
             }
             .store(in: &c)
 
-        Publishers.CombineLatest($isVisible, $state)
+        Publishers.CombineLatest($isVisible, $state.removeDuplicates())
             .sink { [weak self] (isVisible, state) in
                 guard
                     let self,
@@ -344,44 +344,110 @@ final class ControlItem {
             isVisible = true
             // Enable the cell, as it may have been previously disabled.
             button.cell?.isEnabled = true
-            let icon = appState.settingsManager.generalSettingsManager.iceIcon
-            // We can usually just set the image directly from the icon.
-            button.image = switch state {
-            case .hideItems: icon.hidden.nsImage(for: appState)
-            case .showItems: icon.visible.nsImage(for: appState)
-            }
-            if
-                case .custom = icon.name,
-                let originalImage = button.image
-            {
-                // Custom icons need to be resized to fit inside the button.
-                let originalWidth = originalImage.size.width
-                let originalHeight = originalImage.size.height
-                let ratio = max(originalWidth / 25, originalHeight / 17)
-                let newSize = CGSize(width: originalWidth / ratio, height: originalHeight / ratio)
-                button.image = originalImage.resized(to: newSize)
-            }
         case .hidden, .alwaysHidden:
             switch state {
             case .hideItems:
                 isVisible = true
-                // Prevent the cell from highlighting while expanded.
                 button.cell?.isEnabled = false
-                // Cell still sometimes briefly flashes on expansion unless manually unhighlighted.
                 button.isHighlighted = false
-                button.image = nil
             case .showItems:
                 isVisible = appState.settingsManager.advancedSettingsManager.showSectionDividers
-                // Enable the cell, as it may have been previously disabled.
                 button.cell?.isEnabled = true
-                // Set the image based on the section name and the hiding state.
-                switch section.name {
-                case .hidden:
-                    button.image = ControlItemImage.builtin(.chevronLarge).nsImage(for: appState)
-                case .alwaysHidden:
-                    button.image = ControlItemImage.builtin(.chevronSmall).nsImage(for: appState)
-                case .visible: break
+            }
+        }
+        
+        // Démarrage immédiat de l'animation pour répondre à la demande
+        DispatchQueue.main.async {
+            // Déterminer la nouvelle image
+            let newImage: NSImage?
+            switch section.name {
+            case .visible:
+                let icon = appState.settingsManager.generalSettingsManager.iceIcon
+                newImage = switch state {
+                case .hideItems: icon.hidden.nsImage(for: appState)
+                case .showItems: icon.visible.nsImage(for: appState)
                 }
+                if case .custom = icon.name, let originalImage = newImage {
+                    let ratio = max(originalImage.size.width / 25, originalImage.size.height / 17)
+                    _ = originalImage.resized(to: CGSize(width: originalImage.size.width / ratio, height: originalImage.size.height / ratio))
+                    // On gère le redimensionnement
+                }
+            case .hidden, .alwaysHidden:
+                switch state {
+                case .hideItems:
+                    newImage = nil
+                case .showItems:
+                    switch section.name {
+                    case .hidden:
+                        newImage = ControlItemImage.builtin(.chevronLarge).nsImage(for: appState)
+                    case .alwaysHidden:
+                        newImage = ControlItemImage.builtin(.chevronSmall).nsImage(for: appState)
+                    case .visible: newImage = nil
+                    }
+                }
+            }
+
+            // Gérer le cas du redimensionnement d'icône custom
+            var finalNewImage = newImage
+            if section.name == .visible, let img = newImage {
+                let icon = appState.settingsManager.generalSettingsManager.iceIcon
+                if case .custom = icon.name {
+                    let ratio = max(img.size.width / 25, img.size.height / 17)
+                }
+            }
+
+            // Astuce pour éviter le bug de décalage de NSButton : utiliser une NSImageView temporaire
+            let overlay1 = NSImageView(frame: button.bounds.offsetBy(dx: 0, dy: 0.5))
+            overlay1.image = button.image // Image de départ
+            overlay1.imageScaling = .scaleProportionallyDown
+            button.addSubview(overlay1)
+            
+            let overlay2 = NSImageView(frame: button.bounds.offsetBy(dx: 0, dy: 0.5))
+            overlay2.image = finalNewImage // Image d'arrivée
+            overlay2.imageScaling = .scaleProportionallyDown
+            overlay2.alphaValue = 0.0
+            button.addSubview(overlay2)
+            
+            if let currentImageSize = button.image?.size {
+                button.image = NSImage(size: currentImageSize)
+            } else {
+                button.image = nil // Cacher l'image native
+            }
+
+            for ov in [overlay1, overlay2] {
+                ov.wantsLayer = true
+                ov.layerUsesCoreImageFilters = true
+                if let blurFilter = CIFilter(name: "CIGaussianBlur") {
+                    blurFilter.setDefaults()
+                    blurFilter.name = "blur"
+                    blurFilter.setValue(0, forKey: kCIInputRadiusKey)
+                    ov.layer?.filters = [blurFilter]
+                    
+                    let blurAnimation = CAKeyframeAnimation(keyPath: "filters.blur.inputRadius")
+                    blurAnimation.values = [0.0, 0.0, 4.0, 0.0, 0.0]
+                    blurAnimation.keyTimes = [0.0, 0.2, 0.5, 0.9, 1.0]
+                    blurAnimation.duration = 0.25
+                    blurAnimation.timingFunction = CAMediaTimingFunction(name: .linear)
+                    ov.layer?.add(blurAnimation, forKey: "blurAnim")
+                }
+            }
+
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.25
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                overlay1.animator().alphaValue = 0.0
+            }, completionHandler: {
+                overlay1.removeFromSuperview()
+                overlay2.removeFromSuperview()
+                button.image = finalNewImage
+            })
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                NSAnimationContext.runAnimationGroup({ context in
+                    context.duration = 0.15
+                    context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                    overlay2.animator().alphaValue = 1.0
+                })
             }
         }
     }

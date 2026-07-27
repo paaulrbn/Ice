@@ -10,6 +10,7 @@ struct ControlItemImageSet: Codable, Hashable, Identifiable {
     enum Name: String, Codable, Hashable {
         case arrow = "Arrow"
         case chevron = "Chevron"
+        case doubleChevron = "Double Chevron"
         case door = "Door"
         case dot = "Dot"
         case ellipsis = "Ellipsis"
@@ -54,6 +55,11 @@ extension ControlItemImageSet {
             name: .chevron,
             hidden: .symbol("chevron.left"),
             visible: .symbol("chevron.right")
+        ),
+        ControlItemImageSet(
+            name: .doubleChevron,
+            hidden: .catalog("Left"),
+            visible: .catalog("Right")
         ),
         ControlItemImageSet(
             name: .door,

@@ -356,7 +356,7 @@ final class MenuBarManager: ObservableObject {
             return
         }
         Logger.menuBarManager.info("Hiding application menus")
-        appState.activate(withPolicy: .regular)
+        appState.activate(withPolicy: .accessory)
         isHidingApplicationMenus = true
     }
 
