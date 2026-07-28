@@ -561,8 +561,10 @@ final class ControlItem {
                 startImage?.isTemplate = true
                 endImage?.isTemplate = true
 
-                let tintColor: NSColor
-                if let averageColor = appState.menuBarManager.averageColorInfo?.color {
+                var tintColor: NSColor
+                if let renderedColor = self.getRenderedIconColor(from: button) {
+                    tintColor = renderedColor
+                } else if let averageColor = appState.menuBarManager.averageColorInfo?.color {
                     tintColor = (averageColor.brightness ?? 0) > 0.67 ? .black : .white
                 } else {
                     tintColor = .white
@@ -811,6 +813,22 @@ final class ControlItem {
         let cached = StatusItemDefaults[.preferredPosition, autosaveName]
         statusItem.isVisible = false
         StatusItemDefaults[.preferredPosition, autosaveName] = cached
+    }
+
+    private func getRenderedIconColor(from button: NSStatusBarButton) -> NSColor? {
+        guard let bitmap = button.bitmapImageRepForCachingDisplay(in: button.bounds) else { return nil }
+        button.cacheDisplay(in: button.bounds, to: bitmap)
+        for x in 0..<Int(bitmap.pixelsWide) {
+            for y in 0..<Int(bitmap.pixelsHigh) {
+                guard let color = bitmap.colorAt(x: x, y: y) else { continue }
+                if color.alphaComponent > 0.5 {
+                    if let rgb = color.usingColorSpace(.deviceRGB) {
+                        return NSColor(deviceRed: rgb.redComponent, green: rgb.greenComponent, blue: rgb.blueComponent, alpha: 1.0)
+                    }
+                }
+            }
+        }
+        return nil
     }
 }
 
